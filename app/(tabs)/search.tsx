@@ -29,7 +29,7 @@ const search = () => {
       } else {
         reset();
       }
-    }, 500);
+    },  500); // Debounce time of 500ms
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
