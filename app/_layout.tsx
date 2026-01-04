@@ -3,7 +3,6 @@ import './global.css';
 import { StatusBar, View } from "react-native";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuth } from '@/context/AuthContext';
-import { Redirect } from 'expo-router';
 
 function RootLayoutNav() {
   const { isAuthenticated, loading } = useAuth();
