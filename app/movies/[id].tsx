@@ -1,10 +1,12 @@
-import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native'
-import React from 'react'
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native'
+import React, { useState, useEffect } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import useFetch from '@/services/useFetch';
 import { fetchMovieDetails } from '@/services/api';
 import { icons } from '@/constants/icons';
 import { Stack } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { saveMovie, isMovieSaved } from '@/services/appwrite';
 
 interface MovieInfoProps {
   label: string;
@@ -20,18 +22,88 @@ const MovieInfo = ({ label, value }: MovieInfoProps) => (
 
 const MovieDetails = () => {
   const {id} = useLocalSearchParams();
-
   const { data: movie, loading } = useFetch(() => fetchMovieDetails(id as string));
+  const { isAuthenticated } = useAuth();
+  const [saved, setSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && movie?.id) {
+      checkSavedStatus();
+    }
+  }, [movie?.id, isAuthenticated]);
+
+  const checkSavedStatus = async () => {
+    try {
+      const isSaved = await isMovieSaved(movie!.id);
+      setSaved(isSaved);
+    } catch (error) {
+      setSaved(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!isAuthenticated || !movie) {
+      return;
+    }
+
+    setSaveLoading(true);
+    try {
+      // Convert MovieDetails to Movie format for saveMovie function
+      const movieToSave: Movie = {
+        id: movie.id,
+        title: movie.title,
+        poster_path: movie.poster_path || '',
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+        overview: movie.overview || '',
+        backdrop_path: movie.backdrop_path || '',
+        genre_ids: movie.genres?.map(g => g.id) || [],
+        adult: movie.adult,
+        original_language: movie.original_language,
+        original_title: movie.original_title,
+        popularity: movie.popularity,
+        video: movie.video,
+        vote_count: movie.vote_count,
+      };
+      
+      const result = await saveMovie(movieToSave);
+      setSaved(result);
+    } catch (error) {
+      console.error('Error saving movie:', error);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View className='bg-primary flex-1'>
         <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-          <View>
+          <View className='relative'>
             <Image
               source={{ uri: `https://image.tmdb.org/t/p/w500/${movie?.poster_path}.jpg` }}
-              className='w-full h-[650px] resizeMode:stretch' />
+              className='w-full h-[650px] resizeMode:stretch' 
+            />
+            
+            {isAuthenticated && (
+              <TouchableOpacity
+                onPress={handleSave}
+                className='absolute bottom-4 right-4 bg-black/50 rounded-full p-3'
+                disabled={saveLoading}
+              >
+                {saveLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Image 
+                    source={icons.save} 
+                    className='w-6 h-6' 
+                    tintColor={saved ? "#FFD700" : "#fff"}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <View className='flex-col items-start justify-center mt-5 px-5'>
